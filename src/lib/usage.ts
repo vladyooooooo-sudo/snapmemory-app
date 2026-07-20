@@ -22,6 +22,7 @@ export function defaultUsage(): UsageState {
   return {
     domandeIrisPerGiorno: emptyCounter(),
     exportPerSettimana: emptyCounter(),
+    visionPerGiorno: emptyCounter(),
     upgradePromptedOn: null,
   };
 }

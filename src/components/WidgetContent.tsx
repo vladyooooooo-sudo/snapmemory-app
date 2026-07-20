@@ -1,7 +1,8 @@
-import { Camera, Flame, Lock, Unlock, Search, MessageCircleHeart, Check } from "lucide-react";
+import { Camera, Flame, Lock, Unlock, Search, MessageCircleHeart, Check, CalendarClock, BarChart3 } from "lucide-react";
 import { fmt } from "../lib/date";
 import { MOOD_EMOJI } from "../constants/moods";
 import { questionOfDay } from "../constants/questions";
+import { expiryLabel, type ExpiringItem } from "../lib/expiry";
 import { EmptyHint } from "./EmptyHint";
 import { MemoryCard } from "./MemoryCard";
 import type { Memory, Profile, WidgetId } from "../types";
@@ -24,6 +25,7 @@ interface WidgetContentProps {
   answeredToday: boolean;
   fraseText: string;
   setFraseText: (v: string) => void;
+  expiring: ExpiringItem[];
   onOpenCapture: () => void;
   onOpenMemory: (m: Memory) => void;
   onOpenSpotlight: () => void;
@@ -31,6 +33,7 @@ interface WidgetContentProps {
   onToggleVault: () => void;
   onOpenPin: () => void;
   onToggleIdea: (m: Memory) => void;
+  onOpenReport: () => void;
 }
 
 export function WidgetContent(p: WidgetContentProps) {
@@ -213,6 +216,39 @@ export function WidgetContent(p: WidgetContentProps) {
         </div>
       ) : (
         <EmptyHint text="Le idee al volo finiscono qui: da provare, poi fatte." />
+      );
+
+    case "scadenze":
+      return p.expiring.length ? (
+        <div className="space-y-2">
+          {p.expiring.slice(0, 4).map(({ memory, daysLeft }) => (
+            <button
+              key={memory.id}
+              onClick={() => p.onOpenMemory(memory)}
+              className="flex min-h-10 w-full items-center gap-2.5 rounded-xl px-2 text-left transition hover:bg-white/[.05]"
+            >
+              <CalendarClock className={`h-4 w-4 shrink-0 ${daysLeft <= 3 ? "text-rose-300" : "text-amber-300"}`} strokeWidth={1.75} />
+              <span className="min-w-0 flex-1 truncate text-sm text-white/80">{memory.title}</span>
+              <span className={`shrink-0 text-xs ${daysLeft <= 3 ? "text-rose-300/90" : "text-white/50"}`}>{expiryLabel(daysLeft)}</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <EmptyHint text="Fotografa una scadenza (latte, garanzia, bollo) e ci penso io." cta="Scatta una scadenza" onCta={p.onOpenCapture} />
+      );
+
+    case "report":
+      return (
+        <button onClick={p.onOpenReport} className="w-full text-left">
+          <p className="text-[11px] uppercase tracking-[.14em] text-amber-300/80">La tua vita in un colpo d'occhio</p>
+          <div className="mt-2 flex items-center gap-3">
+            <BarChart3 className="h-8 w-8 text-amber-300/80" strokeWidth={1.5} />
+            <div>
+              <p className="font-semibold">Il tuo mese, raccontato da chi c'era.</p>
+              <p className="text-sm text-white/55">Spese, umore, persone, il momento più bello.</p>
+            </div>
+          </div>
+        </button>
       );
 
     default:
