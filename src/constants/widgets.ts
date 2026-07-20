@@ -19,6 +19,8 @@ export const WIDGET_META: Record<WidgetId, WidgetMeta> = {
   frase: { name: "Frase di oggi", desc: "Una micro-domanda al giorno: un ricordo senza foto.", size: "M" },
   persone: { name: "Persone", desc: "I volti (iniziali) della tua vita.", size: "M" },
   idee: { name: "Idee in sospeso", desc: "Da provare → fatto, con un tocco.", size: "M" },
+  scadenze: { name: "In scadenza", desc: "Il latte, la garanzia, il bollo: ci pensa Iris.", size: "M" },
+  report: { name: "Il tuo mese", desc: "Spese, umore, persone: la tua vita in un colpo d'occhio.", size: "M" },
 };
 
 export const SPAN: Record<WidgetSize, string> = {

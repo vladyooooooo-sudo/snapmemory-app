@@ -49,6 +49,10 @@ export const LIMITS: Record<LimitedFeature, FeatureLimitConfig> = {
 
   // Personalizzazione: Free accent fisso (ambra) / Pro sceglie tra 5 accent colors.
   accent: { label: "Colori accento disponibili", free: 1, pro: 5 },
+
+  // Analisi AI della foto (visione vera via Claude): Free 10 al giorno / Pro illimitate.
+  // È anche la protezione dai costi API quando l'app è pubblica.
+  visionAI: { label: "Analisi AI oggi", free: 10, pro: null, period: "day" },
 };
 
 /**

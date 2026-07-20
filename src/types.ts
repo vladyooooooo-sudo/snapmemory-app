@@ -1,4 +1,4 @@
-export type CategoryId = "spesa" | "luogo" | "evento" | "segreto" | "idea" | "persona";
+export type CategoryId = "spesa" | "luogo" | "evento" | "segreto" | "idea" | "persona" | "posizione";
 
 export type Plan = "free" | "pro";
 
@@ -26,6 +26,8 @@ export interface Memory {
   date: string; // ISO string
   mood: MoodIndex | null;
   done?: boolean; // per le idee, spuntabili
+  /** Data di scadenza (YYYY-MM-DD) rilevata da Iris o inserita a mano. */
+  expiry?: string;
 }
 
 export type WidgetSize = "S" | "M" | "L";
@@ -47,7 +49,9 @@ export type WidgetId =
   | "umore"
   | "frase"
   | "persone"
-  | "idee";
+  | "idee"
+  | "scadenze"
+  | "report";
 
 export interface Profile {
   name: string;
@@ -86,6 +90,7 @@ export interface UsageCounter {
 export interface UsageState {
   domandeIrisPerGiorno: UsageCounter;
   exportPerSettimana: UsageCounter;
+  visionPerGiorno: UsageCounter;
   upgradePromptedOn: string | null; // dayKey dell'ultimo prompt di upgrade mostrato
 }
 
@@ -97,7 +102,21 @@ export type LimitedFeature =
   | "export"
   | "annofaStorico"
   | "umoreStorico"
-  | "accent";
+  | "accent"
+  | "visionAI";
+
+/** Intento della cattura: cosa deve guardare Iris nella foto. */
+export type VisionIntent = "scena" | "testo" | "posizione" | "scadenza" | "custom";
+
+/** Risposta strutturata dell'analisi AI di una foto. */
+export interface VisionResult {
+  title: string;
+  description: string;
+  category: CategoryId;
+  tags: string[];
+  amount: number | null;
+  expiry: string | null; // YYYY-MM-DD
+}
 
 export interface LimitResult {
   allowed: boolean;

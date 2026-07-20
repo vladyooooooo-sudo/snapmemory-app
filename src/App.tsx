@@ -18,14 +18,16 @@ import { SpotlightModal, type AskAnswer } from "./components/modals/SpotlightMod
 import { CelebrateModal } from "./components/modals/CelebrateModal";
 import { ArchiveModal } from "./components/modals/ArchiveModal";
 import { UpgradeModal } from "./components/modals/UpgradeModal";
+import { ReportModal } from "./components/modals/ReportModal";
 import { useLimits } from "./hooks/useLimits";
 import { useToast } from "./hooks/useToast";
 import { useFileDropImport } from "./hooks/useFileDropImport";
 import { useVaultAutoLock } from "./hooks/useVaultAutoLock";
-import { parseCapture } from "./lib/parseCapture";
+import type { ParsedCapture } from "./lib/parseCapture";
 import { dayKey, daysAgo } from "./lib/date";
 import { beep } from "./lib/sound";
 import { currentCount } from "./lib/usage";
+import { upcomingExpiries, expiryLabel } from "./lib/expiry";
 import { CATS } from "./constants/categories";
 import { WIDGET_META } from "./constants/widgets";
 import { questionOfDay } from "./constants/questions";
@@ -43,6 +45,7 @@ const CATEGORY_LABEL: Record<LimitedFeature, string> = {
   annofaStorico: "Storico 'Un anno fa'",
   umoreStorico: "Storico Umore",
   accent: "Colori accento",
+  visionAI: "Analisi AI delle foto",
 };
 
 export default function App() {
@@ -51,8 +54,8 @@ export default function App() {
 
   const [mood, setMood] = useState<IrisMood>("idle");
   const [capOpen, setCapOpen] = useState(false);
-  const [capBusy, setCapBusy] = useState(false);
   const [capInitialText, setCapInitialText] = useState("");
+  const [reportOpen, setReportOpen] = useState(false);
   const [celebrate, setCelebrate] = useState<Celebration | null>(null);
   const [spot, setSpot] = useState(false);
   const [q, setQ] = useState("");
@@ -69,14 +72,7 @@ export default function App() {
   const [fraseText, setFraseText] = useState("");
 
   const moodTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const captureTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  useEffect(
-    () => () => {
-      clearTimeout(moodTimer.current);
-      captureTimers.current.forEach(clearTimeout);
-    },
-    []
-  );
+  useEffect(() => () => clearTimeout(moodTimer.current), []);
 
   const react = useCallback(
     (m: IrisMood, ms = 1600, msg?: string | null) => {
@@ -107,6 +103,10 @@ export default function App() {
   const vaultLimit = useLimits("vault", vaultCount, store.plan);
   const exportCount = currentCount(store.usage.exportPerSettimana, "week");
   const exportLimit = useLimits("export", exportCount, store.plan);
+  const visionCount = currentCount(store.usage.visionPerGiorno, "day");
+  const visionLimit = useLimits("visionAI", visionCount, store.plan);
+
+  const expiring = useMemo(() => upcomingExpiries(store.items), [store.items]);
 
   const limitByFeature: Record<LimitedFeature, ReturnType<typeof useLimits>> = {
     memorie: memorieLimit,
@@ -114,6 +114,7 @@ export default function App() {
     domandeIris: domandeLimit,
     vault: vaultLimit,
     export: exportLimit,
+    visionAI: visionLimit,
     annofaStorico: { allowed: true, remaining: Infinity, limit: null, resetAt: null },
     umoreStorico: { allowed: true, remaining: Infinity, limit: null, resetAt: null },
     accent: { allowed: true, remaining: Infinity, limit: null, resetAt: null },
@@ -157,6 +158,7 @@ export default function App() {
         setCapOpen(false);
         setSettingsOpen(false);
         setArchiveOpen(false);
+        setReportOpen(false);
         setMenuFor(null);
         setUpgrade(null);
       }
@@ -169,31 +171,54 @@ export default function App() {
     setVault(false);
   });
 
-  /* ---------- cattura ---------- */
-  const runCapture = (text: string, moodIdx: MoodIndex | null) => {
-    if (capBusy) return;
-    setCapBusy(true);
-    setMood("shutter");
+  /* ---------- scorciatoie PWA (long-press sull'icona: Scatta / Cerca) ---------- */
+  const shortcutHandled = useRef(false);
+  useEffect(() => {
+    if (shortcutHandled.current || !store.profile) return;
+    shortcutHandled.current = true;
+    const action = new URLSearchParams(window.location.search).get("action");
+    if (action === "capture") setCapOpen(true);
+    if (action === "search") setSpot(true);
+    if (action) window.history.replaceState(null, "", window.location.pathname);
+  }, [store.profile]);
+
+  /* ---------- promemoria scadenze: Iris avvisa, una volta al giorno ---------- */
+  useEffect(() => {
+    if (!store.profile) return;
+    const urgent = expiring.filter((x) => x.daysLeft >= 0 && x.daysLeft <= 7);
+    if (!urgent.length) return;
+    const key = "snapmemory:expiry-notified";
+    try {
+      if (localStorage.getItem(key) === dayKey()) return;
+      localStorage.setItem(key, dayKey());
+    } catch {
+      // storage non disponibile: si mostra comunque il toast
+    }
+    const first = urgent[0];
+    show(`${first.memory.title}: ${expiryLabel(first.daysLeft)}`, 4000);
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification("Iris ti ricorda", { body: `${first.memory.title} — ${expiryLabel(first.daysLeft)}` });
+      } catch {
+        // alcune piattaforme richiedono il service worker: il toast basta
+      }
+    }
+  }, [store.profile, expiring, show]);
+
+  /* ---------- cattura: il modale prepara il ricordo, qui si salva ---------- */
+  const saveCapture = (parsed: ParsedCapture, moodIdx: MoodIndex | null) => {
+    if (parsed.locked && !vaultLimit.allowed) {
+      setCapOpen(false);
+      setUpgrade("vault");
+      return;
+    }
     if (store.sounds) beep("shutter");
-    captureTimers.current.push(setTimeout(() => setMood("working"), 300));
-    captureTimers.current.push(
-      setTimeout(() => {
-        const parsed = parseCapture(text);
-        if (parsed.locked && !vaultLimit.allowed) {
-          setCapBusy(false);
-          setCapOpen(false);
-          setUpgrade("vault");
-          return;
-        }
-        const wasDoneToday = store.doneToday;
-        const { memory, celebrate: c } = store.saveMemory(parsed, moodIdx);
-        setCapBusy(false);
-        setCapOpen(false);
-        if (c) setCelebrate(c);
-        react("happy", 2200, c ? null : "Ricordo salvato");
-        if (wasDoneToday) setOpen(memory);
-      }, 1600)
-    );
+    const wasDoneToday = store.doneToday;
+    const { memory, celebrate: c } = store.saveMemory(parsed, moodIdx);
+    setCapOpen(false);
+    if (c) setCelebrate(c);
+    react("happy", 2200, c ? null : "Ricordo salvato");
+    if (wasDoneToday) setOpen(memory);
   };
 
   const saveFraseAnswer = () => {
@@ -235,7 +260,14 @@ export default function App() {
 
       let reply: string;
       const low = t.toLowerCase();
-      if (/quanto|spes|euro|€|costat/.test(low)) {
+      if (/dove (l'ho|ho|le ho|li ho|la ho) (messo|messa|messi|messe|riposto|lasciato|lasciata)|dov'è|dove sta|dove si trova/.test(low)) {
+        // «Dove l'ho messo?» — priorità ai ricordi-posizione
+        const positions = scored.filter((x) => x.m.cat === "posizione" || x.m.cat === "luogo");
+        const best = positions[0] ?? scored[0];
+        reply = best
+          ? `Me lo hai detto ${new Date(best.m.date).toLocaleDateString("it-IT", { day: "numeric", month: "long" })}: ${best.m.summary}`
+          : "Non me lo hai ancora fotografato. La prossima volta che lo riponi, scattami una foto col chip «Dove l'ho messo» e non lo perdi più.";
+      } else if (/quanto|spes|euro|€|costat/.test(low)) {
         const week = /settimana/.test(low);
         const pool = store.items.filter((m) => m.amount != null && (!week || daysAgo(m.date) <= 7));
         const tot = pool.reduce((a, m) => a + (m.amount ?? 0), 0);
@@ -366,6 +398,7 @@ export default function App() {
                 answeredToday={store.answered === dayKey()}
                 fraseText={fraseText}
                 setFraseText={setFraseText}
+                expiring={expiring}
                 onOpenCapture={attemptOpenCapture}
                 onOpenMemory={openMemory}
                 onOpenSpotlight={() => setSpot(true)}
@@ -376,6 +409,7 @@ export default function App() {
                 }}
                 onOpenPin={() => setPinUI(store.pinHash ? "ask" : "set")}
                 onToggleIdea={(m) => store.toggleIdea(m.id)}
+                onOpenReport={() => setReportOpen(true)}
               />
             )}
             onReorderByIds={handleReorderByIds}
@@ -403,12 +437,26 @@ export default function App() {
 
         {capOpen && (
           <CaptureModal
-            busy={capBusy}
-            irisMood={mood}
-            sounds={store.sounds}
             initialText={capInitialText}
-            onClose={() => !capBusy && setCapOpen(false)}
-            onCapture={runCapture}
+            visionAllowed={visionLimit.allowed}
+            visionRemaining={visionLimit.remaining}
+            onClose={() => setCapOpen(false)}
+            onSave={saveCapture}
+            onVisionUsed={() => store.bumpUsage("vision")}
+          />
+        )}
+
+        {reportOpen && (
+          <ReportModal
+            items={store.items}
+            nick={profile.nick}
+            vaultOpen={vault}
+            onClose={() => setReportOpen(false)}
+            onOpenMemory={(m) => {
+              setReportOpen(false);
+              openMemory(m);
+            }}
+            onShared={() => show("Report pronto da condividere")}
           />
         )}
 

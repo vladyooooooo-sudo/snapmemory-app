@@ -1,4 +1,47 @@
-# Changelog — da prototipo a app production-ready
+# Changelog
+
+## 2.0 — «Iris vede davvero» (visione AI + funzioni da spot)
+
+### Novità per il marketing
+
+| Funzione | La frase da spot |
+|---|---|
+| **Visione AI vera** — chip di intento prima dello scatto («Cosa c'è nella foto?», «Leggi il testo», «Dove l'ho messo», «Scadenza», domanda libera); la foto va a Claude e torna un ricordo già compilato, sempre correggibile | *«Non descrivi più la foto: Iris la guarda.»* |
+| **Dove l'ho messo?** — fotografi dove riponi le cose, mesi dopo chiedi a Iris e lei ti risponde con posto e data | *«Non perdere mai più niente.»* |
+| **Scadenze automatiche** — ogni foto con una data di scadenza alimenta il widget «In scadenza», e Iris ti avvisa quando manca poco | *«Il latte, la garanzia, il bollo: ci pensa Iris.»* |
+| **Cattura vocale** — tieni premuto il microfono e detti il ricordo (italiano, zero digitazione) | *«Un pensiero al volo? Diglielo e basta.»* |
+| **Report mensile** — spese per categoria, umore prevalente, persone, luoghi e il momento più bello del mese, condivisibile come immagine per i social | *«Il tuo mese, raccontato da chi c'era.»* |
+| **Eventi → calendario vero** — i ricordi-evento generano un file .ics che si apre in Google/Apple Calendar con un tap | *«Da foto a promemoria in tre secondi.»* |
+
+### Come funziona la visione (architettura)
+
+- La foto va a una Vercel Serverless Function (`api/vision.ts`) che chiama
+  l'API Anthropic (`claude-sonnet-5`, input immagine, output JSON
+  strutturato con schema rigido) con un prompt specifico per il chip
+  scelto. La chiave API vive SOLO nella variabile d'ambiente
+  `ANTHROPIC_API_KEY` su Vercel, mai nel client.
+- Privacy: la foto è usa-e-getta — analizzata e mai salvata su server.
+- Fallback a catena: API non raggiungibile o limite esaurito → OCR locale
+  (Tesseract) → testo manuale. L'app non si blocca mai.
+- La proposta di Iris passa SEMPRE da una schermata di revisione
+  modificabile (titolo, categoria, descrizione, importo, scadenza, tag)
+  prima del salvataggio.
+- Freemium: Free 10 analisi AI al giorno / Pro illimitate (`LIMITS.ts`) —
+  che è anche la protezione dai costi API.
+
+### Design & mobile
+
+- Bottom sheet trascinabili per chiudere (pointer events, maniglia visibile).
+- Feedback aptico (`navigator.vibrate`) su scatto, salvataggio, selezioni.
+- Safe area iOS, input ≥16px su mobile (niente zoom accidentale),
+  pull-to-refresh disattivato, chip scorrevoli raggiungibili col pollice.
+- Scorciatoie PWA (long-press sull'icona → «Scatta» / «Cerca»).
+- Nuova categoria «Posizione» (dove sono riposte le cose) e ricerca
+  dedicata «dove ho messo…» nella barra di Iris.
+
+---
+
+# 1.0 — da prototipo a app production-ready
 
 Questa versione riscrive `SnapMemory.jsx` (un file, ~900 righe, stato in-memory)
 in un progetto React + TypeScript multi-file (Vite, Tailwind, `@dnd-kit`,

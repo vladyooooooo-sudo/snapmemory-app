@@ -5,6 +5,7 @@ import {
   KeyRound,
   Lightbulb,
   Users,
+  PackageSearch,
   type LucideIcon,
 } from "lucide-react";
 import type { CategoryId } from "../types";
@@ -22,6 +23,7 @@ export const CATS: Record<CategoryId, CategoryMeta> = {
   segreto: { label: "Riservato", Icon: KeyRound, tint: "text-rose-300" },
   idea: { label: "Idea", Icon: Lightbulb, tint: "text-fuchsia-300" },
   persona: { label: "Persona", Icon: Users, tint: "text-sky-300" },
+  posizione: { label: "Posizione", Icon: PackageSearch, tint: "text-teal-300" },
 };
 
 export const CATEGORY_IDS = Object.keys(CATS) as CategoryId[];

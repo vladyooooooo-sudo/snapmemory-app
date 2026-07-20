@@ -34,7 +34,8 @@ export function useAppStore() {
   const [plan, setPlan] = useState<Plan>(() => initial("plan", "free"));
   const [accent, setAccent] = useState<string>(() => initial("accent", DEFAULT_ACCENT));
   const [fontLarge, setFontLarge] = useState<boolean>(() => initial("fontLarge", false));
-  const [usage, setUsage] = useState(() => initial("usage", defaultUsage()));
+  // merge con i default: stati salvati da versioni precedenti potrebbero non avere i contatori nuovi
+  const [usage, setUsage] = useState(() => ({ ...defaultUsage(), ...initial("usage", defaultUsage()) }));
 
   const doneToday = lastSave === dayKey();
 
@@ -84,7 +85,7 @@ export function useAppStore() {
     [lastSave, streak, profile]
   );
 
-  const editMemory = useCallback((id: string, patch: Partial<Pick<Memory, "title" | "cat" | "tags" | "amount">>) => {
+  const editMemory = useCallback((id: string, patch: Partial<Pick<Memory, "title" | "cat" | "tags" | "amount" | "expiry">>) => {
     setItems((s) => s.map((m) => (m.id === id ? { ...m, ...patch, locked: patch.cat ? patch.cat === "segreto" : m.locked } : m)));
   }, []);
 
@@ -174,9 +175,10 @@ export function useAppStore() {
     });
   }, []);
 
-  const bumpUsage = useCallback((feature: "domandeIris" | "export") => {
+  const bumpUsage = useCallback((feature: "domandeIris" | "export" | "vision") => {
     setUsage((u) => {
       if (feature === "domandeIris") return { ...u, domandeIrisPerGiorno: bump(u.domandeIrisPerGiorno, "day") };
+      if (feature === "vision") return { ...u, visionPerGiorno: bump(u.visionPerGiorno, "day") };
       return { ...u, exportPerSettimana: bump(u.exportPerSettimana, "week") };
     });
   }, []);

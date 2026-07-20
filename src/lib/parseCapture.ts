@@ -1,4 +1,5 @@
 import type { CategoryId } from "../types";
+import { parseExpiryDate } from "./expiry";
 
 export interface ParsedCapture {
   cat: CategoryId;
@@ -8,6 +9,7 @@ export interface ParsedCapture {
   tags: string[];
   amount?: number;
   locked: boolean;
+  expiry?: string;
 }
 
 /**
@@ -24,7 +26,8 @@ export function parseCapture(text: string): ParsedCapture {
 
   let cat: CategoryId = "idea";
   if (/wifi|wi-fi|password|pwd|pin |codice|iban|carta d'identità|tessera/.test(low)) cat = "segreto";
-  else if (amount !== undefined || /scontrino|pagato|spesa|ricevuta/.test(low)) cat = "spesa";
+  else if (/ho messo|ho riposto|ho lasciato|riposto (in|nel|nella)|scatola|cassetto|cantina|soffitta|ripostiglio|armadio/.test(low)) cat = "posizione";
+  else if (amount !== undefined || /scontrino|pagato|spesa|ricevuta|scad\.|scadenza|da consumar|best before/.test(low)) cat = "spesa";
   else if (/parchegg|posto |livello|settore|via |viale |piazza|binario/.test(low)) cat = "luogo";
   else if (
     /ore \d|alle \d|appuntamento|visita|concerto|biglietto|domani|luned|marted|mercoled|gioved|venerd|sabato|domenica|\d{1,2}\/\d{1,2}/.test(low)
@@ -40,6 +43,7 @@ export function parseCapture(text: string): ParsedCapture {
   const rawTitle = words.slice(0, 5).join(" ").replace(/[.,·]$/, "") || "Ricordo";
   const title = rawTitle[0].toUpperCase() + rawTitle.slice(1);
   const tags = [...new Set(low.split(/[^a-zà-ù0-9]+/).filter((w) => w.length > 4).slice(0, 3))];
+  const expiry = parseExpiryDate(t) ?? undefined;
 
-  return { cat, title, summary: t, ocr: t, tags, amount, locked: cat === "segreto" };
+  return { cat, title, summary: t, ocr: t, tags, amount, locked: cat === "segreto", expiry };
 }

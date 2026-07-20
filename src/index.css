@@ -13,11 +13,31 @@
     background-color: #08080a;
     color: #fff;
     font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+    /* niente pull-to-refresh accidentale: rompe l'esperienza da app */
+    overscroll-behavior-y: none;
   }
 
   :focus-visible {
     outline: 2px solid rgba(252, 211, 77, 0.7);
     outline-offset: 2px;
+  }
+
+  /* iOS zooma sugli input con font < 16px: su mobile li portiamo a 16px */
+  @media (max-width: 640px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
+}
+
+@layer utilities {
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 }
 
